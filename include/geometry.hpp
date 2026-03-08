@@ -13,9 +13,8 @@ namespace geometry {
 
 struct Point2D {
     double x{}, y{};
-
-    [[nodiscard]] constexpr Point2D() : x(0), y(0) {}
-    [[nodiscard]] constexpr Point2D(double x, double y) : x(x), y(y) {}
+    constexpr Point2D() = default;
+    constexpr Point2D(double x, double y) : x(x), y(y) {}
 
     // Comparison
     [[nodiscard]] bool operator<(const Point2D &other) noexcept { return x < other.x && y < other.y; }

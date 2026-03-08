@@ -271,31 +271,55 @@ using Shape = std::variant<Line, Triangle, Rectangle, RegularPolygon, Circle, Po
 }  // namespace geometry
 
 template <>
-struct std::formatter<geometry::Point2D> {
+struct std::formatter<geometry::Point2D, char> {
     constexpr auto parse(std::format_parse_context &ctx) { return ctx.begin(); }
 
     template <typename FormatContext>
-    auto format(const geometry::Point2D &p, FormatContext &ctx) {
+    auto format(const geometry::Point2D &p, FormatContext &ctx) const {
         return format_to(ctx.out(), "({:.2f}, {:.2f})", p.x, p.y);
     }
 };
 template <>
 struct std::formatter<std::vector<geometry::Point2D>> {
-    bool use_new_line = false;
+    bool use_new_line{false};
+    static constexpr std::string_view new_line{"new_line"};
 
     constexpr auto parse(std::format_parse_context &ctx) {
-        auto it = ctx.begin();
+        auto it{ctx.begin()};
+        auto end{ctx.end()};
 
-        /* ваш код здесь */
+        if (it == end || *it == '}')
+            return it;
 
-        return it;
+        std::string_view format_spec(it, end - it);
+
+        if (format_spec.starts_with(new_line)) {
+            use_new_line = true;
+            return it + new_line.size();
+        }
+
+        throw std::format_error("Invalid format specifier for std::vector<geometry::Point2D>");
     }
 
     template <typename FormatContext>
-    auto format(const std::vector<geometry::Point2D> &v, FormatContext &ctx) {
+    auto format(const std::vector<geometry::Point2D> &v, FormatContext &ctx) const {
+        auto out{ctx.out()};
 
-        /* ваш код здесь */
-        return ctx.out();
+        if (v.empty())
+            return out;
+
+        out = std::format_to(out, "{}", v[0]);
+
+        for (const auto &point : std::views::drop(v, 1)) {
+            if (use_new_line) {
+                *out++ = '\n';
+                *out++ = '\t';
+            } else
+                *out++ = ' ';
+            out = std::format_to(out, "{}", point);
+        }
+
+        return out;
     }
 };
 

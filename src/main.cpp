@@ -43,8 +43,8 @@ void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     auto process_intersection = [&shape](const Shape &other) {
         auto result{geometry::intersections::GetIntersectPoint(shape, other)};
 
-        std::string shape_name = GetShapeName(shape);
-        std::string other_name = GetShapeName(other);
+        std::string shape_name{GetShapeName(shape)};
+        std::string other_name{GetShapeName(other)};
 
         auto processed_result =
             result
@@ -70,7 +70,6 @@ void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
         (void)processed_result;
     };
 
-    // Используем ranges вместо цикла for
     std::ranges::for_each(others, process_intersection);
 }
 

@@ -228,30 +228,32 @@ int main() {
     //
     std::vector<Point2D> points;
 
-    /* ваш код здесь */
+    std::ranges::for_each(shapes, [&points](const auto &shape) {
+        shape.visit([&points](const auto &s) { std::ranges::copy(s.Vertices(), std::back_inserter(points)); });
+    });
 
     //
     // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
-    // Создаём из них объект класса `Polygon` и добавляем его в список shapes
-    // Рисуем все фигуры
-    //
-
-    /* ваш код здесь */
-
+    auto convex_hull{geometry::convex_hull::GrahamScan(points)};
+    if (convex_hull.has_value()) {
+        // Создаём из них объект класса `Polygon` и добавляем его в список shapes
+        auto polygon{geometry::Polygon{convex_hull.value()}};
+        // Рисуем все фигуры
+        std::vector<Shape> shapes_convex_hull{polygon};
+        geometry::visualization::Draw(shapes_convex_hull);
+    } else
+        std::println("{}", convex_hull.error().message);
     //
     // после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 3ий график
     //
 
     {
         std::vector<Point2D> points = {{0, 0}, {10, 0}, {5, 8}, {15, 5}, {2, 12}};
-
-        //
-        // Используйте список точек points или свой, чтобы
-        // выполнить алгоритм триангуляции Делоне алгоритмом Боуэра-Ватсона
-        //
-        // После успешного завершения алгоритма - выведите результат для проверки
-        // используя geometry::visualization::Draw
-        //
+        auto triangulation_result{geometry::triangulation::DelaunayTriangulation(points)};
+        if (triangulation_result.has_value()) {
+            geometry::visualization::Draw(triangulation_result.value());
+        } else
+            std::println("{}", triangulation_result.error().message);
     }
     return 0;
 }

@@ -148,22 +148,44 @@ void PerformShapeAnalysis(std::span<const Shape> shapes) {
         std::println("\tРасстояние между фигурой {} и фигурой {} равно {}", GetShapeName(shape1), GetShapeName(shape2),
                      distance);
     }
-    /*
-     * Используйте ranges и созданные классы чтобы:
-     *     - Найти все пересечения между фигурами используя метод Bounding Box
-     *     - Найти самую высокую фигуру (чья высота наибольшая)expected
-     *     - Вывести расстояние между любыми двумя фигурами, которые поддерживают данную функциональность
-     */
 }
 
 void PerformExtraShapeAnalysis(std::span<const Shape> shapes) {
     std::println("\n=== Shape Extra Analysis ===");
+    auto all_indexes{std::views::iota(0U, shapes.size())};
+    {
+        std::println("\t=== Три фигуры выше 50 ===");
 
-    /*
-     * Используйте ranges и созданные классы чтобы:
-     *     - Вывести 3 любые фигуры, которые находятся выше 50.0
-     *     - Вывести фигуры с наименьшей и с наибольшей высотами
-     */
+        auto index_shape_max_heights =
+            all_indexes | std::views::transform([&shapes](const auto &index) {
+                return std::pair<std::size_t, double>(index, geometry::queries::GetHeight(shapes[index]));
+            }) |
+            std::views::filter([](const auto &index_height) {
+                static const double MAX_HEIGHT{50.0};
+                return index_height.second > MAX_HEIGHT;
+            }) |
+            std::views::take(3) | std::ranges::to<std::vector>();
+        std::ranges::for_each(index_shape_max_heights, [&shapes](const auto &index_shape_max_height) {
+            auto [index, height] = index_shape_max_height;
+            std::println("\t{}. Фигура {} высота {}", index, GetShapeName(shapes[index]), height);
+        });
+    }
+    {
+        std::println("\t=== Фигуры с максимальной и минимальной высотами ===");
+        if (shapes.empty())
+            return;
+        auto minmax{std::ranges::minmax_element(shapes, {},
+                                                [](const auto &shape) { return geometry::queries::GetHeight(shape); })};
+
+        auto [min_it, max_it] = minmax;
+        auto min_index{std::distance(shapes.begin(), min_it)};
+        auto max_index{std::distance(shapes.begin(), max_it)};
+
+        std::println("\t{}. Фигура {} — минимальная высота {}", min_index, GetShapeName(*min_it),
+                     geometry::queries::GetHeight(*min_it));
+        std::println("\t{}. Фигура {} — максимальная высота {}", max_index, GetShapeName(*max_it),
+                     geometry::queries::GetHeight(*max_it));
+    }
 }
 
 void PrintShapesHeight(std::span<const Shape> shapes) {
@@ -177,9 +199,9 @@ void PrintShapesHeight(std::span<const Shape> shapes) {
 }
 
 int main() {
-    std::vector<Shape> shapes =
-        utils::ParseShapes("circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
-                           "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
+    std::vector<Shape> shapes = utils::ParseShapes(
+        "circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
+        "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1; line 0 0 0 51; line 0 0 0 52; line 0 0 0 53; line 0 0 0 54");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту

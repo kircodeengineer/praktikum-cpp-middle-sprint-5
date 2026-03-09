@@ -87,7 +87,67 @@ void PrintDistancesFromPointToShapes(Point2D p, std::span<const Shape> shapes) {
 
 void PerformShapeAnalysis(std::span<const Shape> shapes) {
     std::println("\n=== Shape Analysis ===");
+    {
+        std::println("\t=== Все пересечения между фигурами ===");
+        auto all_intersections{geometry::utils::FindAllCollisions(shapes)};
+        auto indexed_collided_shapes{std::views::zip(std::views::iota(0U, shapes.size()), all_intersections)};
+        std::ranges::for_each(indexed_collided_shapes, [](const auto &pair) {
+            const auto &[index, collided_shapes] = pair;
+            std::println("\t{}. Пересечение между фигурой {} и {} ", index, GetShapeName(collided_shapes.first),
+                         GetShapeName(collided_shapes.second));
+        });
+    }
+    {
+        auto heighest_shape_index{geometry::utils::FindHighestShape(shapes)};
+        heighest_shape_index
+            .transform([&shapes](auto index) {
+                std::println("\t=== Самая высокая фигура ===");
+                std::println("\t{}", GetShapeName(shapes[index]));
+                return index;
+            })
+            .or_else([]() {
+                std::println("\t=== Самая высокая фигура отсутствует ===");
+                return std::optional<std::size_t>{};
+            });
+    }
+    {
+        std::println("\t=== Расстояние между двумя фигурами ===");
+        if (shapes.size() < 2) {
+            std::println("Недостаточно фигур для анализа — требуется минимум 2 фигуры");
+            return;
+        }
 
+        auto all_pairs{std::views::iota(0U, shapes.size()) | std::views::transform([&](std::size_t i) {
+                           return std::views::iota(i + 1U, shapes.size()) |
+                                  std::views::transform([i](std::size_t j) { return std::pair{i, j}; });
+                       }) |
+                       std::views::join};
+
+        auto first_valid_pair_opt =
+            all_pairs | std::views::transform([&shapes](const auto &pair) {
+                auto [i, j] = pair;
+                auto distance_opt = geometry::queries::DistanceBetweenShapes(shapes[i], shapes[j]);
+                return std::optional{distance_opt.has_value()
+                                         ? std::optional<std::pair<std::pair<std::size_t, std::size_t>, double>>(
+                                               std::pair{std::pair{i, j}, distance_opt.value()})
+                                         : std::nullopt};
+            }) |
+            std::views::filter([](const auto &opt) { return opt.has_value(); }) | std::views::take(1) |
+            std::ranges::to<std::vector>();
+
+        if (first_valid_pair_opt.empty()) {
+            std::println("\tНе удалось найти ни одной пары фигур с вычислимым расстоянием");
+            return;
+        }
+
+        auto [indices, distance] = *first_valid_pair_opt[0];
+        auto [i, j] = indices;
+        const auto &shape1{shapes[i]};
+        const auto &shape2{shapes[j]};
+
+        std::println("\tРасстояние между фигурой {} и фигурой {} равно {}", GetShapeName(shape1), GetShapeName(shape2),
+                     distance);
+    }
     /*
      * Используйте ranges и созданные классы чтобы:
      *     - Найти все пересечения между фигурами используя метод Bounding Box
@@ -117,8 +177,9 @@ void PrintShapesHeight(std::span<const Shape> shapes) {
 }
 
 int main() {
-    std::vector<Shape> shapes = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 0 1 0 "
-                                                   "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
+    std::vector<Shape> shapes =
+        utils::ParseShapes("circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
+                           "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту

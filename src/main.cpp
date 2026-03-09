@@ -15,17 +15,63 @@ using namespace geometry;
 namespace rng = std::ranges;
 namespace views = std::ranges::views;
 
+std::string GetShapeName(const Shape &shape) {
+    return std::visit(
+        [](const auto &s) -> std::string {
+            using T = std::decay_t<decltype(s)>;
+            if constexpr (std::is_same_v<T, Line>)
+                return "Line";
+            else if constexpr (std::is_same_v<T, Triangle>)
+                return "Triangle";
+            else if constexpr (std::is_same_v<T, Rectangle>)
+                return "Rectangle";
+            else if constexpr (std::is_same_v<T, RegularPolygon>)
+                return "RegularPolygon";
+            else if constexpr (std::is_same_v<T, Circle>)
+                return "Circle";
+            else if constexpr (std::is_same_v<T, Polygon>)
+                return "Polygon";
+            else
+                return "Unknown Shape";
+        },
+        shape);
+}
+
 void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     std::println("\n=== Intersections ===");
 
-    /*
-     * Используйте ranges чтобы оставить только фигуры,
-     * поддерживающие возможность находить пересечения между собой
-     *
-     * Затем примените монадический интерфейс для обработки результатов:
-     *     - Пересечение найдено в точке A между фигурами B и C
-     *     - Фигуры B и C не пересекаются
-     */
+    auto process_intersection = [&shape](const Shape &other) {
+        auto result{geometry::intersections::GetIntersectPoint(shape, other)};
+
+        std::string shape_name = GetShapeName(shape);
+        std::string other_name = GetShapeName(other);
+
+        auto processed_result =
+            result
+                .and_then([&shape_name, &other_name](const std::optional<Point2D> &intersection_opt)
+                              -> std::expected<bool, geometry::intersections::UnsupportedCombinationError> {
+                    if (intersection_opt.has_value()) {
+                        const auto &point = intersection_opt.value();
+                        std::println("Пересечение найдено в точке ({:.6f}, {:.6f}) между {} и {}", point.x, point.y,
+                                     shape_name, other_name);
+                        return true;
+                    } else {
+                        std::println("Фигуры {} и {} не пересекаются", shape_name, other_name);
+                        return false;
+                    }
+                })
+                .or_else([&shape_name, &other_name](const geometry::intersections::UnsupportedCombinationError &error)
+                             -> std::expected<bool, geometry::intersections::UnsupportedCombinationError> {
+                    std::println("Ошибка при поиске пересечения между {} и {}: {}", shape_name, other_name,
+                                 error.message);
+                    return std::unexpected(error);
+                });
+
+        (void)processed_result;
+    };
+
+    // Используем ranges вместо цикла for
+    std::ranges::for_each(others, process_intersection);
 }
 
 void PrintDistancesFromPointToShapes(Point2D p, std::span<const Shape> shapes) {
@@ -60,7 +106,8 @@ void PerformExtraShapeAnalysis(std::span<const Shape> shapes) {
 }
 
 int main() {
-    std::vector<Shape> shapes = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 0 1 0 0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
+    std::vector<Shape> shapes = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 0 1 0 "
+                                                   "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту
@@ -91,7 +138,7 @@ int main() {
     /* ваш код здесь */
 
     //
-    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема 
+    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
     // Создаём из них объект класса `Polygon` и добавляем его в список shapes
     // Рисуем все фигуры
     //

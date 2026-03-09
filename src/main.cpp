@@ -1,12 +1,13 @@
-#include "convex_hull.hpp"
-#include "geometry.hpp"
-#include "intersections.hpp"
-#include "queries.hpp"
-#include "shape_utils.hpp"
-#include "triangulation.hpp"
-#include "visualization.hpp"
+#include <convex_hull.hpp>
+#include <geometry.hpp>
+#include <intersections.hpp>
+#include <queries.hpp>
+#include <shape_utils.hpp>
+#include <triangulation.hpp>
+#include <visualization.hpp>
 
 #include <algorithm>
+#include <numeric>
 #include <print>
 #include <ranges>
 
@@ -75,12 +76,13 @@ void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
 
 void PrintDistancesFromPointToShapes(Point2D p, std::span<const Shape> shapes) {
     std::println("\n=== Distance from Point Test ===");
-
-    /*
-     * Используйте ranges чтобы выбрать любые 5 фигур из списка.
-     * Затем найдите расстояния от заданной точки до всех выбранных фигур.
-     * Выведите результат в формате "Расстояние от точки P до фигуры S равно D"
-     */
+    auto selected_shapes{shapes | std::views::take(5)};
+    auto indexed_shapes{std::views::zip(std::views::iota(0U, shapes.size()), selected_shapes)};
+    std::ranges::for_each(indexed_shapes, [&p](const auto &pair) {
+        const auto &[index, shape] = pair;
+        std::println("{}. Расстояние от точки {} до фигуры {} равно {}", index, p, GetShapeName(shape),
+                     geometry::queries::DistanceToPoint(shape, p));
+    });
 }
 
 void PerformShapeAnalysis(std::span<const Shape> shapes) {
@@ -104,14 +106,23 @@ void PerformExtraShapeAnalysis(std::span<const Shape> shapes) {
      */
 }
 
+void PrintShapesHeight(std::span<const Shape> shapes) {
+    std::println("\n=== Shape Height ===");
+    auto indexed_shapes{std::views::zip(std::views::iota(0U, shapes.size()), shapes)};
+
+    std::ranges::for_each(indexed_shapes, [](const auto &pair) {
+        const auto &[index, shape] = pair;
+        std::println("{}. {} {}", index, GetShapeName(shape), geometry::queries::GetHeight(shape));
+    });
+}
+
 int main() {
     std::vector<Shape> shapes = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 0 1 0 "
                                                    "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту
-
-    //
+    PrintShapesHeight(shapes);
     // Вызываем разработанные функции
     //
     PrintAllIntersections(shapes[0], shapes);

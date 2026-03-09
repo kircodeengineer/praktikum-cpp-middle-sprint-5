@@ -1,12 +1,13 @@
-#include "convex_hull.hpp"
-#include "geometry.hpp"
-#include "intersections.hpp"
-#include "queries.hpp"
-#include "shape_utils.hpp"
-#include "triangulation.hpp"
-#include "visualization.hpp"
+#include <convex_hull.hpp>
+#include <geometry.hpp>
+#include <intersections.hpp>
+#include <queries.hpp>
+#include <shape_utils.hpp>
+#include <triangulation.hpp>
+#include <visualization.hpp>
 
 #include <algorithm>
+#include <numeric>
 #include <print>
 #include <ranges>
 
@@ -15,57 +16,196 @@ using namespace geometry;
 namespace rng = std::ranges;
 namespace views = std::ranges::views;
 
+std::string GetShapeName(const Shape &shape) {
+    return std::visit(
+        [](const auto &s) -> std::string {
+            using T = std::decay_t<decltype(s)>;
+            if constexpr (std::is_same_v<T, Line>)
+                return "Line";
+            else if constexpr (std::is_same_v<T, Triangle>)
+                return "Triangle";
+            else if constexpr (std::is_same_v<T, Rectangle>)
+                return "Rectangle";
+            else if constexpr (std::is_same_v<T, RegularPolygon>)
+                return "RegularPolygon";
+            else if constexpr (std::is_same_v<T, Circle>)
+                return "Circle";
+            else if constexpr (std::is_same_v<T, Polygon>)
+                return "Polygon";
+            else
+                return "Unknown Shape";
+        },
+        shape);
+}
+
 void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     std::println("\n=== Intersections ===");
 
-    /*
-     * Используйте ranges чтобы оставить только фигуры,
-     * поддерживающие возможность находить пересечения между собой
-     *
-     * Затем примените монадический интерфейс для обработки результатов:
-     *     - Пересечение найдено в точке A между фигурами B и C
-     *     - Фигуры B и C не пересекаются
-     */
+    auto process_intersection = [&shape](const Shape &other) {
+        auto result{geometry::intersections::GetIntersectPoint(shape, other)};
+
+        std::string shape_name{GetShapeName(shape)};
+        std::string other_name{GetShapeName(other)};
+
+        auto processed_result =
+            result
+                .and_then([&shape_name, &other_name](const std::optional<Point2D> &intersection_opt)
+                              -> std::expected<bool, geometry::intersections::UnsupportedCombinationError> {
+                    if (intersection_opt.has_value()) {
+                        const auto &point = intersection_opt.value();
+                        std::println("Пересечение найдено в точке ({:.6f}, {:.6f}) между {} и {}", point.x, point.y,
+                                     shape_name, other_name);
+                        return true;
+                    } else {
+                        std::println("Фигуры {} и {} не пересекаются", shape_name, other_name);
+                        return false;
+                    }
+                })
+                .or_else([&shape_name, &other_name](const geometry::intersections::UnsupportedCombinationError &error)
+                             -> std::expected<bool, geometry::intersections::UnsupportedCombinationError> {
+                    std::println("Ошибка при поиске пересечения между {} и {}: {}", shape_name, other_name,
+                                 error.message);
+                    return std::unexpected(error);
+                });
+
+        (void)processed_result;
+    };
+
+    std::ranges::for_each(others, process_intersection);
 }
 
 void PrintDistancesFromPointToShapes(Point2D p, std::span<const Shape> shapes) {
     std::println("\n=== Distance from Point Test ===");
-
-    /*
-     * Используйте ranges чтобы выбрать любые 5 фигур из списка.
-     * Затем найдите расстояния от заданной точки до всех выбранных фигур.
-     * Выведите результат в формате "Расстояние от точки P до фигуры S равно D"
-     */
+    auto selected_shapes{shapes | std::views::take(5)};
+    auto indexed_shapes{std::views::zip(std::views::iota(0U, shapes.size()), selected_shapes)};
+    std::ranges::for_each(indexed_shapes, [&p](const auto &pair) {
+        const auto &[index, shape] = pair;
+        std::println("{}. Расстояние от точки {} до фигуры {} равно {}", index, p, GetShapeName(shape),
+                     geometry::queries::DistanceToPoint(shape, p));
+    });
 }
 
 void PerformShapeAnalysis(std::span<const Shape> shapes) {
     std::println("\n=== Shape Analysis ===");
+    {
+        std::println("\t=== Все пересечения между фигурами ===");
+        auto all_intersections{geometry::utils::FindAllCollisions(shapes)};
+        auto indexed_collided_shapes{std::views::zip(std::views::iota(0U, shapes.size()), all_intersections)};
+        std::ranges::for_each(indexed_collided_shapes, [](const auto &pair) {
+            const auto &[index, collided_shapes] = pair;
+            std::println("\t{}. Пересечение между фигурой {} и {} ", index, GetShapeName(collided_shapes.first),
+                         GetShapeName(collided_shapes.second));
+        });
+    }
+    {
+        auto heighest_shape_index{geometry::utils::FindHighestShape(shapes)};
+        heighest_shape_index
+            .transform([&shapes](auto index) {
+                std::println("\t=== Самая высокая фигура ===");
+                std::println("\t{}", GetShapeName(shapes[index]));
+                return index;
+            })
+            .or_else([]() {
+                std::println("\t=== Самая высокая фигура отсутствует ===");
+                return std::optional<std::size_t>{};
+            });
+    }
+    {
+        std::println("\t=== Расстояние между двумя фигурами ===");
+        if (shapes.size() < 2) {
+            std::println("Недостаточно фигур для анализа — требуется минимум 2 фигуры");
+            return;
+        }
 
-    /*
-     * Используйте ranges и созданные классы чтобы:
-     *     - Найти все пересечения между фигурами используя метод Bounding Box
-     *     - Найти самую высокую фигуру (чья высота наибольшая)expected
-     *     - Вывести расстояние между любыми двумя фигурами, которые поддерживают данную функциональность
-     */
+        auto all_pairs{std::views::iota(0U, shapes.size()) | std::views::transform([&](std::size_t i) {
+                           return std::views::iota(i + 1U, shapes.size()) |
+                                  std::views::transform([i](std::size_t j) { return std::pair{i, j}; });
+                       }) |
+                       std::views::join};
+
+        auto first_valid_pair_opt =
+            all_pairs | std::views::transform([&shapes](const auto &pair) {
+                auto [i, j] = pair;
+                auto distance_opt = geometry::queries::DistanceBetweenShapes(shapes[i], shapes[j]);
+                return std::optional{distance_opt.has_value()
+                                         ? std::optional<std::pair<std::pair<std::size_t, std::size_t>, double>>(
+                                               std::pair{std::pair{i, j}, distance_opt.value()})
+                                         : std::nullopt};
+            }) |
+            std::views::filter([](const auto &opt) { return opt.has_value(); }) | std::views::take(1) |
+            std::ranges::to<std::vector>();
+
+        if (first_valid_pair_opt.empty()) {
+            std::println("\tНе удалось найти ни одной пары фигур с вычислимым расстоянием");
+            return;
+        }
+
+        auto [indices, distance] = *first_valid_pair_opt[0];
+        auto [i, j] = indices;
+        const auto &shape1{shapes[i]};
+        const auto &shape2{shapes[j]};
+
+        std::println("\tРасстояние между фигурой {} и фигурой {} равно {}", GetShapeName(shape1), GetShapeName(shape2),
+                     distance);
+    }
 }
 
 void PerformExtraShapeAnalysis(std::span<const Shape> shapes) {
     std::println("\n=== Shape Extra Analysis ===");
+    auto all_indexes{std::views::iota(0U, shapes.size())};
+    {
+        std::println("\t=== Три фигуры выше 50 ===");
 
-    /*
-     * Используйте ranges и созданные классы чтобы:
-     *     - Вывести 3 любые фигуры, которые находятся выше 50.0
-     *     - Вывести фигуры с наименьшей и с наибольшей высотами
-     */
+        auto index_shape_max_heights =
+            all_indexes | std::views::transform([&shapes](const auto &index) {
+                return std::pair<std::size_t, double>(index, geometry::queries::GetHeight(shapes[index]));
+            }) |
+            std::views::filter([](const auto &index_height) {
+                static const double MAX_HEIGHT{50.0};
+                return index_height.second > MAX_HEIGHT;
+            }) |
+            std::views::take(3) | std::ranges::to<std::vector>();
+        std::ranges::for_each(index_shape_max_heights, [&shapes](const auto &index_shape_max_height) {
+            auto [index, height] = index_shape_max_height;
+            std::println("\t{}. Фигура {} высота {}", index, GetShapeName(shapes[index]), height);
+        });
+    }
+    {
+        std::println("\t=== Фигуры с максимальной и минимальной высотами ===");
+        if (shapes.empty())
+            return;
+        auto minmax{std::ranges::minmax_element(shapes, {},
+                                                [](const auto &shape) { return geometry::queries::GetHeight(shape); })};
+
+        auto [min_it, max_it] = minmax;
+        auto min_index{std::distance(shapes.begin(), min_it)};
+        auto max_index{std::distance(shapes.begin(), max_it)};
+
+        std::println("\t{}. Фигура {} — минимальная высота {}", min_index, GetShapeName(*min_it),
+                     geometry::queries::GetHeight(*min_it));
+        std::println("\t{}. Фигура {} — максимальная высота {}", max_index, GetShapeName(*max_it),
+                     geometry::queries::GetHeight(*max_it));
+    }
+}
+
+void PrintShapesHeight(std::span<const Shape> shapes) {
+    std::println("\n=== Shape Height ===");
+    auto indexed_shapes{std::views::zip(std::views::iota(0U, shapes.size()), shapes)};
+
+    std::ranges::for_each(indexed_shapes, [](const auto &pair) {
+        const auto &[index, shape] = pair;
+        std::println("{}. {} {}", index, GetShapeName(shape), geometry::queries::GetHeight(shape));
+    });
 }
 
 int main() {
-    std::vector<Shape> shapes = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 0 1 0 0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
+    std::vector<Shape> shapes = utils::ParseShapes(
+        "circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
+        "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1; line 0 0 0 51; line 0 0 0 52; line 0 0 0 53; line 0 0 0 54");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту
-
-    //
+    PrintShapesHeight(shapes);
     // Вызываем разработанные функции
     //
     PrintAllIntersections(shapes[0], shapes);
@@ -88,30 +228,32 @@ int main() {
     //
     std::vector<Point2D> points;
 
-    /* ваш код здесь */
+    std::ranges::for_each(shapes, [&points](const auto &shape) {
+        shape.visit([&points](const auto &s) { std::ranges::copy(s.Vertices(), std::back_inserter(points)); });
+    });
 
     //
-    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема 
-    // Создаём из них объект класса `Polygon` и добавляем его в список shapes
-    // Рисуем все фигуры
-    //
-
-    /* ваш код здесь */
-
+    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
+    auto convex_hull{geometry::convex_hull::GrahamScan(points)};
+    if (convex_hull.has_value()) {
+        // Создаём из них объект класса `Polygon` и добавляем его в список shapes
+        auto polygon{geometry::Polygon{convex_hull.value()}};
+        // Рисуем все фигуры
+        std::vector<Shape> shapes_convex_hull{polygon};
+        geometry::visualization::Draw(shapes_convex_hull);
+    } else
+        std::println("{}", convex_hull.error().message);
     //
     // после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 3ий график
     //
 
     {
         std::vector<Point2D> points = {{0, 0}, {10, 0}, {5, 8}, {15, 5}, {2, 12}};
-
-        //
-        // Используйте список точек points или свой, чтобы
-        // выполнить алгоритм триангуляции Делоне алгоритмом Боуэра-Ватсона
-        //
-        // После успешного завершения алгоритма - выведите результат для проверки
-        // используя geometry::visualization::Draw
-        //
+        auto triangulation_result{geometry::triangulation::DelaunayTriangulation(points)};
+        if (triangulation_result.has_value()) {
+            geometry::visualization::Draw(triangulation_result.value());
+        } else
+            std::println("{}", triangulation_result.error().message);
     }
     return 0;
 }

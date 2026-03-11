@@ -84,13 +84,9 @@ std::optional<int> RequireIntegerAtLeast(double d, int min_value) {
         return Circle{{v[0], v[1]}, v[2]};
 */
 std::optional<Shape> MakeCircle(const std::vector<double> &v) {
-    return RequireSize(v, 3).and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-        if (!opt_vec.has_value())
-            return std::nullopt;
-        const auto &vec = opt_vec.value();
-        if (vec[2] <= 0)
-            return std::nullopt;  // радиус > 0
-        return Circle{{vec[0], vec[1]}, vec[2]};
+    return RequireSize(v, 3).and_then([](const auto &vec) -> std::optional<Shape> {
+        return RequirePositive(vec[2]).and_then(
+            [&vec](double radius) -> std::optional<Shape> { return Circle{{vec[0], vec[1]}, radius}; });
     });
 }
 
@@ -101,12 +97,8 @@ std::optional<Shape> MakeCircle(const std::vector<double> &v) {
         return Line{{v[0], v[1]}, {v[2], v[3]}};
 */
 std::optional<Shape> MakeLine(const std::vector<double> &v) {
-    return RequireSize(v, 4).and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-        if (!opt_vec.has_value())
-            return std::nullopt;
-        const auto &vec = opt_vec.value();
-        return Line{{vec[0], vec[1]}, {vec[2], vec[3]}};
-    });
+    return RequireSize(v, 4).and_then(
+        [](const auto &vec) -> std::optional<Shape> { return Line{{vec[0], vec[1]}, {vec[2], vec[3]}}; });
 }
 
 /**
@@ -116,10 +108,7 @@ std::optional<Shape> MakeLine(const std::vector<double> &v) {
         return Triangle{{v[0], v[1]}, {v[2], v[3]}, {v[4], v[5]}};
 */
 std::optional<Shape> MakeTriangle(const std::vector<double> &v) {
-    return RequireSize(v, 6).and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-        if (!opt_vec.has_value())
-            return std::nullopt;
-        const auto &vec = opt_vec.value();
+    return RequireSize(v, 6).and_then([](const auto &vec) -> std::optional<Shape> {
         return Triangle{{vec[0], vec[1]}, {vec[2], vec[3]}, {vec[4], vec[5]}};
     });
 }
@@ -131,13 +120,11 @@ std::optional<Shape> MakeTriangle(const std::vector<double> &v) {
         return Rectangle{{v[0], v[1]}, v[2], v[3]};
 */
 std::optional<Shape> MakeRectangle(const std::vector<double> &v) {
-    return RequireSize(v, 4).and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-        if (!opt_vec.has_value())
-            return std::nullopt;
-        const auto &vec = opt_vec.value();
-        if (vec[2] <= 0 || vec[3] <= 0)
-            return std::nullopt;  // ширина/высота > 0
-        return Rectangle{{vec[0], vec[1]}, vec[2], vec[3]};
+    return RequireSize(v, 4).and_then([](const auto &vec) -> std::optional<Shape> {
+        return RequirePositive(vec[2]).and_then([&vec](const auto &) -> std::optional<Shape> {
+            return RequirePositive(vec[3]).and_then(
+                [&vec](const auto &) -> std::optional<Shape> { return Rectangle{{vec[0], vec[1]}, vec[2], vec[3]}; });
+        });
     });
 }
 
@@ -153,21 +140,13 @@ std::optional<Shape> MakeRectangle(const std::vector<double> &v) {
         return RegularPolygon{{v[0], v[1]}, v[2], sides};
 */
 std::optional<Shape> MakePolygon(const std::vector<double> &v) {
-    return RequireSize(v, 4).and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-        if (!opt_vec.has_value())
-            return std::nullopt;
-        const auto &vec = opt_vec.value();
-
-        // Проверка радиуса
-        if (vec[2] <= 0)
-            return std::nullopt;
-
-        // Проверка количества сторон: должно быть целым числом ≥ 3
-        int sides = static_cast<int>(vec[3]);
-        if (sides != vec[3] || sides < 3)
-            return std::nullopt;
-
-        return RegularPolygon{{vec[0], vec[1]}, vec[2], sides};
+    return RequireSize(v, 4).and_then([](const auto &vec) -> std::optional<Shape> {
+        return RequirePositive(vec[2]).and_then([&vec](const auto &) -> std::optional<Shape> {
+            return RequireIntegerAtLeast(vec[3], static_cast<int>(vec[3]))
+                .and_then([&vec](const auto &) -> std::optional<Shape> {
+                    return RegularPolygon{{vec[0], vec[1]}, vec[2], static_cast<int>(vec[3])};
+                });
+        });
     });
 }
 

@@ -30,8 +30,8 @@ struct Point2D {
     }
 
     // Binary geometry operations
-    [[nodiscard]] double Dot(const Point2D &other) noexcept { return x * other.x + y * other.y; }
-    [[nodiscard]] double Cross(const Point2D &other) noexcept { return x * other.y - y * other.x; }
+    [[nodiscard]] double Dot(const Point2D &other) const noexcept { return x * other.x + y * other.y; }
+    [[nodiscard]] double Cross(const Point2D &other) const noexcept { return x * other.y - y * other.x; }
     [[nodiscard]] double Length() const noexcept { return std::sqrt(x * x + y * y); }
     [[nodiscard]] double DistanceTo(const Point2D &other) const noexcept { return (*this - other).Length(); }
 

@@ -15,7 +15,7 @@ class IntersectionVisitor {
 public:
     using Result = std::expected<std::optional<Point2D>, UnsupportedCombinationError>;
 
-    [[nodiscard]] Result operator()(const Line &line1, const Line &line2) const {
+    [[nodiscard]] Result operator()(const Line &line1, const Line &line2, double epsilon = 1e-9) const {
         auto a1{line1.end.y - line1.start.y};
         auto b1{line1.start.x - line1.end.x};
         auto c1{a1 * line1.start.x + b1 * line1.start.y};
@@ -26,7 +26,7 @@ public:
 
         auto det{a1 * b2 - a2 * b2};
 
-        if (std::abs(det) < 1e-9)
+        if (std::abs(det) < epsilon)
             return std::nullopt;
 
         auto x{(b2 * c1 - b1 * c2) / det};
@@ -34,10 +34,10 @@ public:
 
         Point2D intersection{x, y};
 
-        auto is_on_segment = [](const Point2D &p, const Line &l) -> bool {
-            return std::abs((l.start - p).Cross(l.end - p)) < 1e-9 &&
-                   (p.x >= std::min(l.start.x, l.end.x) - 1e-9 && p.x <= std::max(l.start.x, l.end.x) + 1e-9) &&
-                   (p.y >= std::min(l.start.y, l.end.y) - 1e-9 && p.y <= std::max(l.start.y, l.end.y) + 1e-9);
+        auto is_on_segment = [&epsilon](const Point2D &p, const Line &l) -> bool {
+            return std::abs((l.start - p).Cross(l.end - p)) < epsilon &&
+                   (p.x >= std::min(l.start.x, l.end.x) - epsilon && p.x <= std::max(l.start.x, l.end.x) + epsilon) &&
+                   (p.y >= std::min(l.start.y, l.end.y) - epsilon && p.y <= std::max(l.start.y, l.end.y) + epsilon);
         };
 
         if (is_on_segment(intersection, line1) && is_on_segment(intersection, line2))

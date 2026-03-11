@@ -199,9 +199,11 @@ void PrintShapesHeight(std::span<const Shape> shapes) {
 }
 
 int main() {
-    std::vector<Shape> shapes = utils::ParseShapes(
-        "circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
-        "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1; line 0 0 0 51; line 0 0 0 52; line 0 0 0 53; line 0 0 0 54");
+
+    std::vector<Shape> shapes =
+        utils::ParseShapes("circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
+                           "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1; line 0 0 0 51; line 0 0 0 52; line 0 "
+                           "0 0 53; line 0 0 0 54");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту
@@ -220,15 +222,16 @@ int main() {
     // Рисуем все фигуры
     //
     // Важно: после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 2ой график
-    //
-    geometry::visualization::Draw(shapes);
+    std::vector<Shape> shapes_to_draw = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 "
+                                                           "0 1 0 0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
+    geometry::visualization::Draw(shapes_to_draw);
 
     //
     // Формируем список из вершин всех фигур
-    //
+
     std::vector<Point2D> points;
 
-    std::ranges::for_each(shapes, [&points](const auto &shape) {
+    std::ranges::for_each(shapes_to_draw, [&points](const auto &shape) {
         shape.visit([&points](const auto &s) { std::ranges::copy(s.Vertices(), std::back_inserter(points)); });
     });
 
@@ -236,11 +239,12 @@ int main() {
     // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
     auto convex_hull{geometry::convex_hull::GrahamScan(points)};
     if (convex_hull.has_value()) {
+        auto convex_hull_no_first_point{convex_hull.value() | std::views::drop(1) | std::ranges::to<std::vector>()};
         // Создаём из них объект класса `Polygon` и добавляем его в список shapes
-        auto polygon{geometry::Polygon{convex_hull.value()}};
+        auto polygon{geometry::Polygon{convex_hull_no_first_point}};
         // Рисуем все фигуры
-        std::vector<Shape> shapes_convex_hull{polygon};
-        geometry::visualization::Draw(shapes_convex_hull);
+        shapes_to_draw.emplace_back(std::move(polygon));
+        geometry::visualization::Draw(shapes_to_draw);
     } else
         std::println("{}", convex_hull.error().message);
     //

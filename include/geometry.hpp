@@ -13,7 +13,7 @@ namespace geometry {
 
 struct Point2D {
     double x{}, y{};
-    constexpr Point2D() = default;
+    constexpr Point2D() noexcept = default;
     constexpr Point2D(double x, double y) : x(x), y(y) {}
 
     // Comparison
@@ -151,10 +151,10 @@ struct RegularPolygon {
     double radius;
     int sides;
 
-    constexpr RegularPolygon(Point2D center, double radius, int sides)
+    constexpr RegularPolygon(Point2D center, double radius, int sides) noexcept
         : center_p(center), radius(radius), sides(sides) {}
 
-    std::vector<Point2D> Vertices() const {
+    [[nodiscard]] std::vector<Point2D> Vertices() const {
         std::vector<Point2D> points;
         points.reserve(sides);
 

@@ -5,6 +5,9 @@
 namespace geometry::queries {
 class GeometryQueriesTest : public ::testing::Test {
 protected:
+    const double epsilon_10{1e-10};
+    const double epsilon_2{1e-2};
+
     Point2D point_origin{0.0, 0.0};
     Point2D point_far{10.0, 10.0};
 
@@ -17,82 +20,82 @@ protected:
 };
 
 TEST_F(GeometryQueriesTest, DistanceToPointLine) {
-    EXPECT_NEAR(5.0, DistanceToPoint(line_horizontal, point_origin), 1e-10);
-    EXPECT_NEAR(0.0, DistanceToPoint(line_horizontal, Point2D{5.0, 5.0}), 1e-10);
+    EXPECT_NEAR(5.0, DistanceToPoint(line_horizontal, point_origin), epsilon_10);
+    EXPECT_NEAR(0.0, DistanceToPoint(line_horizontal, Point2D{5.0, 5.0}), epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, DistanceToPointTriangle) {
-    EXPECT_NEAR(2.89, DistanceToPoint(triangle, Point2D{5.0, 2.89}), 1e-2);
-    EXPECT_NEAR(2.82, DistanceToPoint(triangle, Point2D{-2.0, -2.0}), 1e-2);
+    EXPECT_NEAR(2.89, DistanceToPoint(triangle, Point2D{5.0, 2.89}), epsilon_2);
+    EXPECT_NEAR(2.82, DistanceToPoint(triangle, Point2D{-2.0, -2.0}), epsilon_2);
 }
 
 TEST_F(GeometryQueriesTest, DistanceToPointRectangle) {
-    EXPECT_NEAR(1.0, DistanceToPoint(rectangle, Point2D{3.0, 3.0}), 1e-10);
-    EXPECT_NEAR(0.0, DistanceToPoint(rectangle, Point2D{8.0, 4.0}), 1e-10);
-    EXPECT_NEAR(4.47, DistanceToPoint(rectangle, point_far), 1e-2);
+    EXPECT_NEAR(1.0, DistanceToPoint(rectangle, Point2D{3.0, 3.0}), epsilon_10);
+    EXPECT_NEAR(0.0, DistanceToPoint(rectangle, Point2D{8.0, 4.0}), epsilon_10);
+    EXPECT_NEAR(4.47, DistanceToPoint(rectangle, point_far), epsilon_2);
 }
 
 TEST_F(GeometryQueriesTest, DistanceToPointCircle) {
-    EXPECT_NEAR(0.0, DistanceToPoint(circle, Point2D{5.0, 5.0}), 1e-10);
-    EXPECT_NEAR(0.0, DistanceToPoint(circle, Point2D{8.0, 5.0}), 1e-10);
-    EXPECT_NEAR(2.0, DistanceToPoint(circle, Point2D{10.0, 5.0}), 1e-10);
+    EXPECT_NEAR(0.0, DistanceToPoint(circle, Point2D{5.0, 5.0}), epsilon_10);
+    EXPECT_NEAR(0.0, DistanceToPoint(circle, Point2D{8.0, 5.0}), epsilon_10);
+    EXPECT_NEAR(2.0, DistanceToPoint(circle, Point2D{10.0, 5.0}), epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, DistanceToPointPolygon) {
-    EXPECT_NEAR(1.41, DistanceToPoint(polygon, Point2D{2.0, 2.0}), 1e-2);
-    EXPECT_NEAR(1.41, DistanceToPoint(polygon, Point2D{5.0, 2.0}), 1e-2);
+    EXPECT_NEAR(1.41, DistanceToPoint(polygon, Point2D{2.0, 2.0}), epsilon_2);
+    EXPECT_NEAR(1.41, DistanceToPoint(polygon, Point2D{5.0, 2.0}), epsilon_2);
 }
 
 TEST_F(GeometryQueriesTest, GetBoundBoxLine) {
     BoundingBox bb{GetBoundBox(line_horizontal)};
-    EXPECT_NEAR(0.0, bb.min_x, 1e-10);
-    EXPECT_NEAR(10.0, bb.max_x, 1e-10);
-    EXPECT_NEAR(5.0, bb.min_y, 1e-10);
-    EXPECT_NEAR(5.0, bb.max_y, 1e-10);
+    EXPECT_NEAR(0.0, bb.min_x, epsilon_10);
+    EXPECT_NEAR(10.0, bb.max_x, epsilon_10);
+    EXPECT_NEAR(5.0, bb.min_y, epsilon_10);
+    EXPECT_NEAR(5.0, bb.max_y, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, GetBoundBoxRectangle) {
     BoundingBox bb{GetBoundBox(rectangle)};
-    EXPECT_NEAR(2.0, bb.min_x, 1e-10);
-    EXPECT_NEAR(8.0, bb.max_x, 1e-10);
-    EXPECT_NEAR(2.0, bb.min_y, 1e-10);
-    EXPECT_NEAR(6.0, bb.max_y, 1e-10);
+    EXPECT_NEAR(2.0, bb.min_x, epsilon_10);
+    EXPECT_NEAR(8.0, bb.max_x, epsilon_10);
+    EXPECT_NEAR(2.0, bb.min_y, epsilon_10);
+    EXPECT_NEAR(6.0, bb.max_y, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, GetBoundBoxCircle) {
     BoundingBox bb{GetBoundBox(circle)};
-    EXPECT_NEAR(2.0, bb.min_x, 1e-10);
-    EXPECT_NEAR(8.0, bb.max_x, 1e-10);
-    EXPECT_NEAR(2.0, bb.min_y, 1e-10);
-    EXPECT_NEAR(8.0, bb.max_y, 1e-10);
+    EXPECT_NEAR(2.0, bb.min_x, epsilon_10);
+    EXPECT_NEAR(8.0, bb.max_x, epsilon_10);
+    EXPECT_NEAR(2.0, bb.min_y, epsilon_10);
+    EXPECT_NEAR(8.0, bb.max_y, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, GetBoundBoxPolygon) {
     BoundingBox bb{GetBoundBox(polygon)};
-    EXPECT_NEAR(1.0, bb.min_x, 1e-10);
-    EXPECT_NEAR(4.0, bb.max_x, 1e-10);
-    EXPECT_NEAR(1.0, bb.min_y, 1e-10);
-    EXPECT_NEAR(4.0, bb.max_y, 1e-10);
+    EXPECT_NEAR(1.0, bb.min_x, epsilon_10);
+    EXPECT_NEAR(4.0, bb.max_x, epsilon_10);
+    EXPECT_NEAR(1.0, bb.min_y, epsilon_10);
+    EXPECT_NEAR(4.0, bb.max_y, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, GetHeightRectangle) {
     auto height{GetHeight(rectangle)};
-    EXPECT_NEAR(6.0, height, 1e-10);
+    EXPECT_NEAR(6.0, height, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, GetHeightTriangle) {
     auto height{GetHeight(triangle)};
-    EXPECT_NEAR(8.66, height, 1e-2);
+    EXPECT_NEAR(8.66, height, epsilon_2);
 }
 
 TEST_F(GeometryQueriesTest, GetHeightCircle) {
     auto height{GetHeight(circle)};
-    EXPECT_NEAR(8.0, height, 1e-10);
+    EXPECT_NEAR(8.0, height, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, GetHeightPolygon) {
     auto height{GetHeight(polygon)};
-    EXPECT_NEAR(3.0, height, 1e-10);
+    EXPECT_NEAR(3.0, height, epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, DistanceBetweenShapesCircles) {
@@ -101,7 +104,7 @@ TEST_F(GeometryQueriesTest, DistanceBetweenShapesCircles) {
 
     auto distance{DistanceBetweenShapes(circle1, circle2)};
     ASSERT_TRUE(distance.has_value());
-    EXPECT_NEAR(3.0, distance.value(), 1e-10);
+    EXPECT_NEAR(3.0, distance.value(), epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, DistanceBetweenShapesLines) {
@@ -110,7 +113,7 @@ TEST_F(GeometryQueriesTest, DistanceBetweenShapesLines) {
 
     auto distance{DistanceBetweenShapes(line1, line2)};
     ASSERT_TRUE(distance.has_value());
-    EXPECT_NEAR(3.0, distance.value(), 1e-10);
+    EXPECT_NEAR(3.0, distance.value(), epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, DistanceBetweenShapesUnsupportedCombination) {
@@ -128,12 +131,12 @@ TEST_F(GeometryQueriesTest, DistanceBetweenShapesOverlappingCircles) {
 
     auto distance{DistanceBetweenShapes(circle1, circle2)};
     ASSERT_TRUE(distance.has_value());
-    EXPECT_NEAR(0.0, distance.value(), 1e-10);
+    EXPECT_NEAR(0.0, distance.value(), epsilon_10);
 }
 
 TEST_F(GeometryQueriesTest, DistanceBetweenShapesSameShape) {
     auto distance{DistanceBetweenShapes(circle, circle)};
     ASSERT_TRUE(distance.has_value());
-    EXPECT_NEAR(0.0, distance.value(), 1e-10);
+    EXPECT_NEAR(0.0, distance.value(), epsilon_10);
 }
 }  // namespace geometry::queries

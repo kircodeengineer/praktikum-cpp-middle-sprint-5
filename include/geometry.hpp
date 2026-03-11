@@ -63,7 +63,7 @@ struct Lines2DDyn {
         x.push_back(px);
         y.push_back(py);
     }
-    [[nodiscard]] Point2D Front() const { return {x.front(), y.front()}; }
+    [[nodiscard]] constexpr Point2D Front() { return {x.front(), y.front()}; }
 };
 
 struct BoundingBox {

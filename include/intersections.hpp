@@ -105,7 +105,7 @@ public:
     template <typename T1, typename T2>
     Result operator()(const T1 &, const T2 &) const {
         UnsupportedCombinationError error{"Unsupported shape combination for intersection"};
-        return std::unexpected(UnsupportedCombinationError{"Unsupported shape combination for intersection"});
+        return std::unexpected(error);
     }
 };
 

@@ -142,10 +142,8 @@ std::optional<Shape> MakeRectangle(const std::vector<double> &v) {
 std::optional<Shape> MakePolygon(const std::vector<double> &v) {
     return RequireSize(v, 4).and_then([](const auto &vec) -> std::optional<Shape> {
         return RequirePositive(vec[2]).and_then([&vec](const auto &) -> std::optional<Shape> {
-            return RequireIntegerAtLeast(vec[3], static_cast<int>(vec[3]))
-                .and_then([&vec](const auto &) -> std::optional<Shape> {
-                    return RegularPolygon{{vec[0], vec[1]}, vec[2], static_cast<int>(vec[3])};
-                });
+            return RequireIntegerAtLeast(vec[3], 3).and_then(
+                [&vec](int sides) -> std::optional<Shape> { return RegularPolygon{{vec[0], vec[1]}, vec[2], sides}; });
         });
     });
 }

@@ -16,27 +16,21 @@ using namespace geometry;
 namespace rng = std::ranges;
 namespace views = std::ranges::views;
 
+template <class... Ts>
+struct Multilambda : Ts... {
+    using Ts::operator()...;
+};
+
 std::string GetShapeName(const Shape &shape) {
-    return std::visit(
-        [](const auto &s) -> std::string {
-            using T = std::decay_t<decltype(s)>;
-            if constexpr (std::is_same_v<T, Line>)
-                return "Line";
-            else if constexpr (std::is_same_v<T, Triangle>)
-                return "Triangle";
-            else if constexpr (std::is_same_v<T, Rectangle>)
-                return "Rectangle";
-            else if constexpr (std::is_same_v<T, RegularPolygon>)
-                return "RegularPolygon";
-            else if constexpr (std::is_same_v<T, Circle>)
-                return "Circle";
-            else if constexpr (std::is_same_v<T, Polygon>)
-                return "Polygon";
-            else
-                return "Unknown Shape";
-        },
-        shape);
-}
+    return std::visit(Multilambda{[](const Line &) -> std::string { return "Line"; },
+                                  [](const Triangle &) -> std::string { return "Triangle"; },
+                                  [](const Rectangle &) -> std::string { return "Rectangle"; },
+                                  [](const RegularPolygon &) -> std::string { return "RegularPolygon"; },
+                                  [](const Circle &) -> std::string { return "Circle"; },
+                                  [](const Polygon &) -> std::string { return "Polygon"; },
+                                  [](const auto &) -> std::string { return "Unknown Shape"; }},
+                      shape);
+};
 
 void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     std::println("\n=== Intersections ===");

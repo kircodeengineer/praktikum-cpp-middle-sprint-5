@@ -111,9 +111,6 @@ public:
 
 inline std::expected<std::optional<Point2D>, UnsupportedCombinationError> GetIntersectPoint(const Shape &shape1,
                                                                                             const Shape &shape2) {
-    IntersectionVisitor visitor;
-    return std::visit(
-        [&visitor](const auto &s1, const auto &s2) -> IntersectionVisitor::Result { return visitor(s1, s2); }, shape1,
-        shape2);
+    return std::visit(IntersectionVisitor{}, shape1, shape2);
 }
 }  // namespace geometry::intersections

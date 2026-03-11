@@ -13,7 +13,7 @@ namespace geometry {
 
 struct Point2D {
     double x{}, y{};
-    constexpr Point2D() = default;
+    constexpr Point2D() noexcept = default;
     constexpr Point2D(double x, double y) : x(x), y(y) {}
 
     // Comparison
@@ -30,8 +30,8 @@ struct Point2D {
     }
 
     // Binary geometry operations
-    [[nodiscard]] double Dot(const Point2D &other) noexcept { return x * other.x + y * other.y; }
-    [[nodiscard]] double Cross(const Point2D &other) noexcept { return x * other.y - y * other.x; }
+    [[nodiscard]] double Dot(const Point2D &other) const noexcept { return x * other.x + y * other.y; }
+    [[nodiscard]] double Cross(const Point2D &other) const noexcept { return x * other.y - y * other.x; }
     [[nodiscard]] double Length() const noexcept { return std::sqrt(x * x + y * y); }
     [[nodiscard]] double DistanceTo(const Point2D &other) const noexcept { return (*this - other).Length(); }
 
@@ -63,7 +63,7 @@ struct Lines2DDyn {
         x.push_back(px);
         y.push_back(py);
     }
-    [[nodiscard]] Point2D Front() const { return {x.front(), y.front()}; }
+    [[nodiscard]] constexpr Point2D Front() { return {x.front(), y.front()}; }
 };
 
 struct BoundingBox {
@@ -151,10 +151,10 @@ struct RegularPolygon {
     double radius;
     int sides;
 
-    constexpr RegularPolygon(Point2D center, double radius, int sides)
+    constexpr RegularPolygon(Point2D center, double radius, int sides) noexcept
         : center_p(center), radius(radius), sides(sides) {}
 
-    std::vector<Point2D> Vertices() const {
+    [[nodiscard]] std::vector<Point2D> Vertices() const {
         std::vector<Point2D> points;
         points.reserve(sides);
 

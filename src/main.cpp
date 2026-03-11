@@ -16,27 +16,21 @@ using namespace geometry;
 namespace rng = std::ranges;
 namespace views = std::ranges::views;
 
+template <class... Ts>
+struct Multilambda : Ts... {
+    using Ts::operator()...;
+};
+
 std::string GetShapeName(const Shape &shape) {
-    return std::visit(
-        [](const auto &s) -> std::string {
-            using T = std::decay_t<decltype(s)>;
-            if constexpr (std::is_same_v<T, Line>)
-                return "Line";
-            else if constexpr (std::is_same_v<T, Triangle>)
-                return "Triangle";
-            else if constexpr (std::is_same_v<T, Rectangle>)
-                return "Rectangle";
-            else if constexpr (std::is_same_v<T, RegularPolygon>)
-                return "RegularPolygon";
-            else if constexpr (std::is_same_v<T, Circle>)
-                return "Circle";
-            else if constexpr (std::is_same_v<T, Polygon>)
-                return "Polygon";
-            else
-                return "Unknown Shape";
-        },
-        shape);
-}
+    return std::visit(Multilambda{[](const Line &) -> std::string { return "Line"; },
+                                  [](const Triangle &) -> std::string { return "Triangle"; },
+                                  [](const Rectangle &) -> std::string { return "Rectangle"; },
+                                  [](const RegularPolygon &) -> std::string { return "RegularPolygon"; },
+                                  [](const Circle &) -> std::string { return "Circle"; },
+                                  [](const Polygon &) -> std::string { return "Polygon"; },
+                                  [](const auto &) -> std::string { return "Unknown Shape"; }},
+                      shape);
+};
 
 void PrintAllIntersections(const Shape &shape, std::span<const Shape> others) {
     std::println("\n=== Intersections ===");
@@ -123,25 +117,22 @@ void PerformShapeAnalysis(std::span<const Shape> shapes) {
                        }) |
                        std::views::join};
 
-        auto first_valid_pair_opt =
-            all_pairs | std::views::transform([&shapes](const auto &pair) {
-                auto [i, j] = pair;
-                auto distance_opt = geometry::queries::DistanceBetweenShapes(shapes[i], shapes[j]);
-                return std::optional{distance_opt.has_value()
-                                         ? std::optional<std::pair<std::pair<std::size_t, std::size_t>, double>>(
-                                               std::pair{std::pair{i, j}, distance_opt.value()})
-                                         : std::nullopt};
-            }) |
-            std::views::filter([](const auto &opt) { return opt.has_value(); }) | std::views::take(1) |
-            std::ranges::to<std::vector>();
+        std::optional<std::tuple<std::size_t, std::size_t, double>> result;
+        auto distance_pair = std::ranges::find_if(all_pairs, [&shapes, &result](const auto &pair) {
+            auto [i, j] = pair;
+            auto distance_opt = geometry::queries::DistanceBetweenShapes(shapes[i], shapes[j]);
+            if (distance_opt.has_value())
+                result = std::optional<std::tuple<std::size_t, std::size_t, double>>{
+                    std::make_tuple(i, j, distance_opt.value())};
+            return distance_opt.has_value();
+        });
 
-        if (first_valid_pair_opt.empty()) {
+        if (!result) {
             std::println("\tНе удалось найти ни одной пары фигур с вычислимым расстоянием");
             return;
         }
 
-        auto [indices, distance] = *first_valid_pair_opt[0];
-        auto [i, j] = indices;
+        auto [i, j, distance] = result.value();
         const auto &shape1{shapes[i]};
         const auto &shape2{shapes[j]};
 
@@ -199,9 +190,11 @@ void PrintShapesHeight(std::span<const Shape> shapes) {
 }
 
 int main() {
-    std::vector<Shape> shapes = utils::ParseShapes(
-        "circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
-        "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1; line 0 0 0 51; line 0 0 0 52; line 0 0 0 53; line 0 0 0 54");
+
+    std::vector<Shape> shapes =
+        utils::ParseShapes("circle 0 0 1.5; line 4 0 0 4; line 0 0 4 4; polygon 0 0 2 5; triangle 0 0 1 0 "
+                           "0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1; line 0 0 0 51; line 0 0 0 52; line 0 "
+                           "0 0 53; line 0 0 0 54");
     std::println("Parsed {} shapes", shapes.size());
 
     // Выведите индекс каждой фигуры и её высоту
@@ -220,15 +213,16 @@ int main() {
     // Рисуем все фигуры
     //
     // Важно: после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 2ой график
-    //
-    geometry::visualization::Draw(shapes);
+    std::vector<Shape> shapes_to_draw = utils::ParseShapes("circle 0 0 1.5; line 1 2 3 4; polygon 0 0 2 5; triangle 0 "
+                                                           "0 1 0 0.5 1; polygon 0 0 1 2; badshape; circle 0 0 -1");
+    geometry::visualization::Draw(shapes_to_draw);
 
     //
     // Формируем список из вершин всех фигур
-    //
+
     std::vector<Point2D> points;
 
-    std::ranges::for_each(shapes, [&points](const auto &shape) {
+    std::ranges::for_each(shapes_to_draw, [&points](const auto &shape) {
         shape.visit([&points](const auto &s) { std::ranges::copy(s.Vertices(), std::back_inserter(points)); });
     });
 
@@ -236,11 +230,12 @@ int main() {
     // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
     auto convex_hull{geometry::convex_hull::GrahamScan(points)};
     if (convex_hull.has_value()) {
+        auto convex_hull_no_first_point{convex_hull.value() | std::views::drop(1) | std::ranges::to<std::vector>()};
         // Создаём из них объект класса `Polygon` и добавляем его в список shapes
-        auto polygon{geometry::Polygon{convex_hull.value()}};
+        auto polygon{geometry::Polygon{convex_hull_no_first_point}};
         // Рисуем все фигуры
-        std::vector<Shape> shapes_convex_hull{polygon};
-        geometry::visualization::Draw(shapes_convex_hull);
+        shapes_to_draw.emplace_back(std::move(polygon));
+        geometry::visualization::Draw(shapes_to_draw);
     } else
         std::println("{}", convex_hull.error().message);
     //

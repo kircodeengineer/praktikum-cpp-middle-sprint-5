@@ -275,7 +275,7 @@ TEST(MakePolygonTest, NonIntegerSides) {
 }
 
 TEST(MakePolygonTest, TooFewSides) {
-    auto result{MakePolygon({0.0, 0.0, 5.0, 2.0})};
+    auto result{MakePolygon({0.0, 0.0, 5.0, 2.0, 2.0})};
     EXPECT_FALSE(result.has_value());
 }
 

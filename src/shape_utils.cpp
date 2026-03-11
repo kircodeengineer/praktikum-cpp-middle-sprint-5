@@ -84,20 +84,10 @@ std::optional<int> RequireIntegerAtLeast(double d, int min_value) {
         return Circle{{v[0], v[1]}, v[2]};
 */
 std::optional<Shape> MakeCircle(const std::vector<double> &v) {
-    return std::optional{v}
-        .transform([](const std::vector<double> &vec) -> std::optional<std::vector<double>> {
-            if (vec.size() != 3)
-                return std::nullopt;
-            return vec;
-        })
-        .and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-            if (!opt_vec.has_value())
-                return std::nullopt;
-            const auto &vec = opt_vec.value();
-            if (vec[2] <= 0)
-                return std::nullopt;  // радиус > 0
-            return Circle{{vec[0], vec[1]}, vec[2]};
-        });
+    return RequireSize(v, 3).and_then([](const auto &vec) -> std::optional<Shape> {
+        return RequirePositive(vec[2]).and_then(
+            [&vec](double radius) -> std::optional<Shape> { return Circle{{vec[0], vec[1]}, radius}; });
+    });
 }
 
 /**
@@ -107,18 +97,8 @@ std::optional<Shape> MakeCircle(const std::vector<double> &v) {
         return Line{{v[0], v[1]}, {v[2], v[3]}};
 */
 std::optional<Shape> MakeLine(const std::vector<double> &v) {
-    return std::optional{v}
-        .transform([](const std::vector<double> &vec) -> std::optional<std::vector<double>> {
-            if (vec.size() != 4)
-                return std::nullopt;
-            return vec;
-        })
-        .and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-            if (!opt_vec.has_value())
-                return std::nullopt;
-            const auto &vec = opt_vec.value();
-            return Line{{vec[0], vec[1]}, {vec[2], vec[3]}};
-        });
+    return RequireSize(v, 4).and_then(
+        [](const auto &vec) -> std::optional<Shape> { return Line{{vec[0], vec[1]}, {vec[2], vec[3]}}; });
 }
 
 /**
@@ -128,18 +108,9 @@ std::optional<Shape> MakeLine(const std::vector<double> &v) {
         return Triangle{{v[0], v[1]}, {v[2], v[3]}, {v[4], v[5]}};
 */
 std::optional<Shape> MakeTriangle(const std::vector<double> &v) {
-    return std::optional{v}
-        .transform([](const std::vector<double> &vec) -> std::optional<std::vector<double>> {
-            if (vec.size() != 6)
-                return std::nullopt;
-            return vec;
-        })
-        .and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-            if (!opt_vec.has_value())
-                return std::nullopt;
-            const auto &vec = opt_vec.value();
-            return Triangle{{vec[0], vec[1]}, {vec[2], vec[3]}, {vec[4], vec[5]}};
-        });
+    return RequireSize(v, 6).and_then([](const auto &vec) -> std::optional<Shape> {
+        return Triangle{{vec[0], vec[1]}, {vec[2], vec[3]}, {vec[4], vec[5]}};
+    });
 }
 /**
     @brief Создаёт прямоугольник из параметров
@@ -149,20 +120,12 @@ std::optional<Shape> MakeTriangle(const std::vector<double> &v) {
         return Rectangle{{v[0], v[1]}, v[2], v[3]};
 */
 std::optional<Shape> MakeRectangle(const std::vector<double> &v) {
-    return std::optional{v}
-        .transform([](const std::vector<double> &vec) -> std::optional<std::vector<double>> {
-            if (vec.size() != 4)
-                return std::nullopt;
-            return vec;
-        })
-        .and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-            if (!opt_vec.has_value())
-                return std::nullopt;
-            const auto &vec = opt_vec.value();
-            if (vec[2] <= 0 || vec[3] <= 0)
-                return std::nullopt;  // ширина/высота > 0
-            return Rectangle{{vec[0], vec[1]}, vec[2], vec[3]};
+    return RequireSize(v, 4).and_then([](const auto &vec) -> std::optional<Shape> {
+        return RequirePositive(vec[2]).and_then([&vec](const auto &) -> std::optional<Shape> {
+            return RequirePositive(vec[3]).and_then(
+                [&vec](const auto &) -> std::optional<Shape> { return Rectangle{{vec[0], vec[1]}, vec[2], vec[3]}; });
         });
+    });
 }
 
 /**
@@ -177,28 +140,12 @@ std::optional<Shape> MakeRectangle(const std::vector<double> &v) {
         return RegularPolygon{{v[0], v[1]}, v[2], sides};
 */
 std::optional<Shape> MakePolygon(const std::vector<double> &v) {
-    return std::optional{v}
-        .transform([](const std::vector<double> &vec) -> std::optional<std::vector<double>> {
-            if (vec.size() != 4)
-                return std::nullopt;
-            return vec;
-        })
-        .and_then([](const std::optional<std::vector<double>> &opt_vec) -> std::optional<Shape> {
-            if (!opt_vec.has_value())
-                return std::nullopt;
-            const auto &vec = opt_vec.value();
-
-            // Проверка радиуса
-            if (vec[2] <= 0)
-                return std::nullopt;
-
-            // Проверка количества сторон: должно быть целым числом ≥ 3
-            int sides = static_cast<int>(vec[3]);
-            if (sides != vec[3] || sides < 3)
-                return std::nullopt;
-
-            return RegularPolygon{{vec[0], vec[1]}, vec[2], sides};
+    return RequireSize(v, 4).and_then([](const auto &vec) -> std::optional<Shape> {
+        return RequirePositive(vec[2]).and_then([&vec](const auto &) -> std::optional<Shape> {
+            return RequireIntegerAtLeast(vec[3], 3).and_then(
+                [&vec](int sides) -> std::optional<Shape> { return RegularPolygon{{vec[0], vec[1]}, vec[2], sides}; });
         });
+    });
 }
 
 // Парсинг одной фигуры
@@ -271,16 +218,19 @@ std::vector<std::pair<Shape, Shape>> FindAllCollisions(std::span<const Shape> sh
     std::vector<std::pair<Shape, Shape>> collisions;
     collisions.reserve(size * (size - 1) / 2);
 
-    auto pairs =
-        std::views::iota(0U, size) | std::views::transform([&shapes, &size](std::size_t i) {
-            return std::views::iota(i + 1U, size) | std::views::filter([&shapes, i](std::size_t j) {
-                       return geometry::queries::BoundingBoxesOverlap(shapes[i], shapes[j]);
-                   }) |
-                   std::views::transform([&shapes, i](std::size_t j) { return std::pair{shapes[i], shapes[j]}; });
-        }) |
-        std::views::join;
+    auto index_pairs = std::views::iota(0U, size) | std::views::transform([&shapes, &size](std::size_t i) {
+                           return std::views::iota(i + 1U, size) | std::views::filter([&shapes, i](std::size_t j) {
+                                      return geometry::queries::BoundingBoxesOverlap(shapes[i], shapes[j]);
+                                  }) |
+                                  std::views::transform([i](std::size_t j) { return std::pair{i, j}; });
+                       }) |
+                       std::views::join;
 
-    std::ranges::copy(pairs, std::back_inserter(collisions));
+    std::ranges::for_each(index_pairs, [&shapes, &collisions](const auto &ij) {
+        auto [i, j] = ij;
+        collisions.emplace_back(std::piecewise_construct, std::forward_as_tuple(shapes[i]),
+                                std::forward_as_tuple(shapes[j]));
+    });
 
     return collisions;
 }

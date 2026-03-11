@@ -271,17 +271,20 @@ std::vector<std::pair<Shape, Shape>> FindAllCollisions(std::span<const Shape> sh
     std::vector<std::pair<Shape, Shape>> collisions;
     collisions.reserve(size * (size - 1) / 2);
 
-    auto pairs =
-        std::views::iota(0U, size) | std::views::transform([&shapes, &size](std::size_t i) {
-            return std::views::iota(i + 1U, size) | std::views::filter([&shapes, i](std::size_t j) {
-                       return geometry::queries::BoundingBoxesOverlap(shapes[i], shapes[j]);
-                   }) |
-                   std::views::transform([&shapes, i](std::size_t j) { return std::pair{shapes[i], shapes[j]}; });
-        }) |
-        std::views::join;
+    auto index_pairs = std::views::iota(0U, size) | std::views::transform([&shapes, &size](std::size_t i) {
+                           return std::views::iota(i + 1U, size) | std::views::filter([&shapes, i](std::size_t j) {
+                                      return geometry::queries::BoundingBoxesOverlap(shapes[i], shapes[j]);
+                                  }) |
+                                  std::views::transform([i](std::size_t j) { return std::pair{i, j}; });
+                       }) |
+                       std::views::join;
 
-    std::ranges::copy(pairs, std::back_inserter(collisions));
-
+    std::ranges::for_each(index_pairs, [&shapes, &collisions](const auto &ij) {
+        auto [i, j] = ij;
+        collisions.emplace_back(std::piecewise_construct, std::forward_as_tuple(shapes[i]),
+                                std::forward_as_tuple(shapes[j]));
+    });
+    
     return collisions;
 }
 

@@ -117,26 +117,27 @@ void PerformShapeAnalysis(std::span<const Shape> shapes) {
                        }) |
                        std::views::join};
 
-        std::optional<double> distance_opt;
-        std::pair<std::size_t, std::size_t> ij;
+        std::optional<std::tuple<std::size_t, std::size_t, double>> result;
+        auto distance_pair = std::ranges::find_if(all_pairs, [&shapes, &result](const auto &pair) {
+            auto [i, j] = pair;
+            auto distance_opt = geometry::queries::DistanceBetweenShapes(shapes[i], shapes[j]);
+            if (distance_opt.has_value())
+                result = std::optional<std::tuple<std::size_t, std::size_t, double>>{
+                    std::make_tuple(i, j, distance_opt.value())};
+            return distance_opt.has_value();
+        });
 
-        auto first_valid_pair_opt =
-            std::ranges::find_if(all_pairs, [&shapes, &distance_opt, &ij](const auto &pair) -> bool {
-                ij = pair;
-                distance_opt = geometry::queries::DistanceBetweenShapes(shapes[ij.first], shapes[ij.second]);
-                return distance_opt.has_value();
-            });
-
-        if (!distance_opt) {
+        if (!result) {
             std::println("\tНе удалось найти ни одной пары фигур с вычислимым расстоянием");
             return;
         }
 
-        const auto &shape1{shapes[ij.first]};
-        const auto &shape2{shapes[ij.second]};
+        auto [i, j, distance] = result.value();
+        const auto &shape1{shapes[i]};
+        const auto &shape2{shapes[j]};
 
         std::println("\tРасстояние между фигурой {} и фигурой {} равно {}", GetShapeName(shape1), GetShapeName(shape2),
-                     *distance_opt);
+                     distance);
     }
 }
 

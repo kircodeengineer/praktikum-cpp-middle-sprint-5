@@ -226,18 +226,22 @@ int main() {
         shape.visit([&points](const auto &s) { std::ranges::copy(s.Vertices(), std::back_inserter(points)); });
     });
 
-    //
-    // Находим список точек, для построения выпуклой оболочки - convex hull - алгоритмом Грэхема
     auto convex_hull{geometry::convex_hull::GrahamScan(points)};
-    if (convex_hull.has_value()) {
-        auto convex_hull_no_first_point{convex_hull.value() | std::views::drop(1) | std::ranges::to<std::vector>()};
-        // Создаём из них объект класса `Polygon` и добавляем его в список shapes
-        auto polygon{geometry::Polygon{convex_hull_no_first_point}};
-        // Рисуем все фигуры
-        shapes_to_draw.emplace_back(std::move(polygon));
-        geometry::visualization::Draw(shapes_to_draw);
-    } else
-        std::println("{}", convex_hull.error().message);
+    auto draw_convex_hull =
+        convex_hull
+            .transform([](auto &points) { return points | std::views::drop(1) | std::ranges::to<std::vector>(); })
+            .transform([](auto points) -> geometry::Polygon { return geometry::Polygon{std::move(points)}; })
+            .and_then([&shapes_to_draw](geometry::Polygon polygon) {
+                shapes_to_draw.emplace_back(std::move(polygon));
+                geometry::visualization::Draw(shapes_to_draw);
+                return std::expected<std::vector<Point2D>, geometry::convex_hull::Error>();
+            })
+            .or_else([](const auto &error) -> std::expected<std::vector<Point2D>, geometry::convex_hull::Error> {
+                std::println("{}", error.message);
+                return std::unexpected(error);
+            });
+    (void)draw_convex_hull;
+
     //
     // после изучения графика - нажмите Enter чтобы продолжить выполнение и построить 3ий график
     //

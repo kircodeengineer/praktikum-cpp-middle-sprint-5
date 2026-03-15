@@ -1,10 +1,10 @@
 #pragma once
 #include "geometry.hpp"
 #include <algorithm>
+#include <expected>
 #include <format>
 #include <set>
 #include <vector>
-#include <stdexcept>
 
 namespace geometry::triangulation {
 
@@ -86,11 +86,15 @@ struct Edge {
     }
 };
 
-//Ваш код здесь
-inline std::vector<DelaunayTriangle> DelaunayTriangulation(std::span<const Point2D> points) {
-   if (points.size() < 3) {
-        throw std::logic_error("At least three points are required for triangulation.");
-    }
+struct Error {
+    std::string message;
+    explicit Error(std::string msg) : message(std::move(msg)) {};
+};
+
+inline std::expected<std::vector<DelaunayTriangle>, Error>
+DelaunayTriangulation(std::span<const Point2D> points) noexcept {
+    if (points.size() < 3)
+        return std::unexpected(Error{"At least three points are required for triangulation."});
 
     auto [minX, maxX] =
         std::minmax_element(points.begin(), points.end(), [](const Point2D &a, const Point2D &b) { return a.x < b.x; });
@@ -131,34 +135,30 @@ inline std::vector<DelaunayTriangle> DelaunayTriangulation(std::span<const Point
         }
 
         std::erase_if(triangles, [&bad_triangles](const DelaunayTriangle &t) {
-                                           return std::find_if(bad_triangles.begin(), bad_triangles.end(),
-                                                               [&t](const DelaunayTriangle &bad) {
-                                                                   return std::abs(t.a.x - bad.a.x) < 1e-10 &&
-                                                                          std::abs(t.a.y - bad.a.y) < 1e-10 &&
-                                                                          std::abs(t.b.x - bad.b.x) < 1e-10 &&
-                                                                          std::abs(t.b.y - bad.b.y) < 1e-10 &&
-                                                                          std::abs(t.c.x - bad.c.x) < 1e-10 &&
-                                                                          std::abs(t.c.y - bad.c.y) < 1e-10;
-                                                               }) != bad_triangles.end();
-                                       });
+            return std::find_if(bad_triangles.begin(), bad_triangles.end(), [&t](const DelaunayTriangle &bad) {
+                       return std::abs(t.a.x - bad.a.x) < 1e-10 && std::abs(t.a.y - bad.a.y) < 1e-10 &&
+                              std::abs(t.b.x - bad.b.x) < 1e-10 && std::abs(t.b.y - bad.b.y) < 1e-10 &&
+                              std::abs(t.c.x - bad.c.x) < 1e-10 && std::abs(t.c.y - bad.c.y) < 1e-10;
+                   }) != bad_triangles.end();
+        });
 
         for (const Edge &edge : polygon) {
             triangles.emplace_back(edge.p1, edge.p2, point);
         }
     }
     std::erase_if(triangles, [&super1, &super2, &super3](const DelaunayTriangle &t) {
-                           return (std::abs(t.a.x - super1.x) < 1e-10 && std::abs(t.a.y - super1.y) < 1e-10) ||
-                                  (std::abs(t.a.x - super2.x) < 1e-10 && std::abs(t.a.y - super2.y) < 1e-10) ||
-                                  (std::abs(t.a.x - super3.x) < 1e-10 && std::abs(t.a.y - super3.y) < 1e-10) ||
-                                  (std::abs(t.b.x - super1.x) < 1e-10 && std::abs(t.b.y - super1.y) < 1e-10) ||
-                                  (std::abs(t.b.x - super2.x) < 1e-10 && std::abs(t.b.y - super2.y) < 1e-10) ||
-                                  (std::abs(t.b.x - super3.x) < 1e-10 && std::abs(t.b.y - super3.y) < 1e-10) ||
-                                  (std::abs(t.c.x - super1.x) < 1e-10 && std::abs(t.c.y - super1.y) < 1e-10) ||
-                                  (std::abs(t.c.x - super2.x) < 1e-10 && std::abs(t.c.y - super2.y) < 1e-10) ||
-                                  (std::abs(t.c.x - super3.x) < 1e-10 && std::abs(t.c.y - super3.y) < 1e-10);
-                       });
+        return (std::abs(t.a.x - super1.x) < 1e-10 && std::abs(t.a.y - super1.y) < 1e-10) ||
+               (std::abs(t.a.x - super2.x) < 1e-10 && std::abs(t.a.y - super2.y) < 1e-10) ||
+               (std::abs(t.a.x - super3.x) < 1e-10 && std::abs(t.a.y - super3.y) < 1e-10) ||
+               (std::abs(t.b.x - super1.x) < 1e-10 && std::abs(t.b.y - super1.y) < 1e-10) ||
+               (std::abs(t.b.x - super2.x) < 1e-10 && std::abs(t.b.y - super2.y) < 1e-10) ||
+               (std::abs(t.b.x - super3.x) < 1e-10 && std::abs(t.b.y - super3.y) < 1e-10) ||
+               (std::abs(t.c.x - super1.x) < 1e-10 && std::abs(t.c.y - super1.y) < 1e-10) ||
+               (std::abs(t.c.x - super2.x) < 1e-10 && std::abs(t.c.y - super2.y) < 1e-10) ||
+               (std::abs(t.c.x - super3.x) < 1e-10 && std::abs(t.c.y - super3.y) < 1e-10);
+    });
 
-    return triangles;
+    return std::expected<std::vector<DelaunayTriangle>, Error>(std::in_place, std::move(triangles));
 }
 }  // namespace geometry::triangulation
 
